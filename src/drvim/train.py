@@ -201,8 +201,15 @@ def train(config_path: Path, manifest_path: Path, qualification_path: Path,
     amp_dtype = {"bf16": torch.bfloat16, "fp16": torch.float16, "none": None}[amp]
     if amp_dtype == torch.bfloat16 and not torch.cuda.is_bf16_supported(including_emulation=False):
         raise RuntimeError("Requested bf16 is not native on this accelerator")
-    scaler = torch.amp.GradScaler("cuda", enabled=amp == "fp16")
+    initial_scale = float(training.get("grad_scaler_init_scale", 65536.0))
+    if not np.isfinite(initial_scale) or initial_scale <= 0:
+        raise ValueError("grad_scaler_init_scale must be finite and positive")
+    max_consecutive_overflows = int(training.get("max_consecutive_overflows", 8))
+    if max_consecutive_overflows < 1:
+        raise ValueError("max_consecutive_overflows must be positive")
+    scaler = torch.amp.GradScaler("cuda", init_scale=initial_scale, enabled=amp == "fp16")
     start_epoch, best_qwk, best_epoch, history, previous_elapsed = 0, float("-inf"), 0, [], 0.0
+    total_overflows, consecutive_overflows = 0, 0
     config_sha = hashlib.sha256(config_bytes).hexdigest()
     manifest_sha = sha256_file(manifest_path)
     if resume:
@@ -224,6 +231,8 @@ def train(config_path: Path, manifest_path: Path, qualification_path: Path,
         best_epoch = checkpoint["best_epoch"]
         history = checkpoint["history"]
         previous_elapsed = float(checkpoint.get("elapsed_seconds", 0.0))
+        total_overflows = int(checkpoint.get("total_gradient_overflows", 0))
+        consecutive_overflows = int(checkpoint.get("consecutive_gradient_overflows", 0))
         _restore_rng(checkpoint["rng_by_rank"][rank])
     if stop_after_epoch is not None and stop_after_epoch <= start_epoch:
         raise ValueError("Requested session boundary was already completed")
@@ -242,6 +251,8 @@ def train(config_path: Path, manifest_path: Path, qualification_path: Path,
             sampler.set_epoch(epoch)
         optimizer.zero_grad(set_to_none=True)
         local_loss_sum, local_count = 0.0, 0
+        window_loss_sum, window_count = 0.0, 0
+        epoch_overflows = 0
         for step, batch in enumerate(train_loader):
             images = batch["image"].to(device, non_blocking=True)
             labels = batch["grade"].to(device, non_blocking=True)
@@ -266,22 +277,50 @@ def train(config_path: Path, manifest_path: Path, qualification_path: Path,
                 if window_examples <= 0:
                     raise RuntimeError("Distributed accumulation window has no real images")
                 scaler.scale(weighted_loss * (world_size / window_examples)).backward()
-            local_loss_sum += float(weighted_loss.detach())
-            local_count += int(weights.sum().item())
+            window_loss_sum += float(weighted_loss.detach())
+            window_count += int(weights.sum().item())
             if final_microbatch:
                 scaler.unscale_(optimizer)
                 gradient_norm = nn.utils.clip_grad_norm_(raw_model.parameters(),
                                                            float(training["max_grad_norm"]),
-                                                           error_if_nonfinite=True)
+                                                           error_if_nonfinite=False)
                 if not torch.isfinite(gradient_norm):
-                    raise FloatingPointError("Nonfinite gradient norm")
+                    if amp != "fp16":
+                        raise FloatingPointError("Nonfinite gradient norm")
+                    old_scale = scaler.get_scale()
+                    scaler.step(optimizer)
+                    scaler.update()
+                    new_scale = scaler.get_scale()
+                    if new_scale >= old_scale:
+                        raise FloatingPointError("Nonfinite FP16 gradient did not reduce loss scale")
+                    total_overflows += 1
+                    epoch_overflows += 1
+                    consecutive_overflows += 1
+                    optimizer.zero_grad(set_to_none=True)
+                    window_loss_sum, window_count = 0.0, 0
+                    if consecutive_overflows >= max_consecutive_overflows:
+                        raise FloatingPointError(
+                            f"FP16 gradient overflowed {consecutive_overflows} consecutive "
+                            f"optimizer windows at epoch={epoch}, step={step}; "
+                            f"loss scale fell to {new_scale}")
+                    if rank == 0:
+                        print(json.dumps({"event": "gradient_overflow", "epoch": epoch + 1,
+                                          "step": step, "old_scale": old_scale,
+                                          "new_scale": new_scale}), flush=True)
+                    continue
                 scaler.step(optimizer)
                 scaler.update()
                 optimizer.zero_grad(set_to_none=True)
+                consecutive_overflows = 0
+                local_loss_sum += window_loss_sum
+                local_count += window_count
+                window_loss_sum, window_count = 0.0, 0
         scheduler.step()
         totals = torch.tensor([local_loss_sum, local_count], dtype=torch.float64, device=device)
         if distributed:
             dist.all_reduce(totals)
+        if totals[1] <= 0:
+            raise FloatingPointError("No training examples contributed to an optimizer update")
         train_loss = float(totals[0] / totals[1])
         if rank == 0:
             assert val_loader is not None
@@ -293,6 +332,8 @@ def train(config_path: Path, manifest_path: Path, qualification_path: Path,
                 best_epoch = epoch + 1
             history.append({"epoch": epoch + 1, "train_loss": train_loss,
                             "validation": validation, "learning_rate": scheduler.get_last_lr()[0],
+                            "gradient_overflows": epoch_overflows,
+                            "contributing_training_images": int(totals[1]),
                             "epoch_seconds": time.monotonic() - epoch_start})
         if distributed:
             dist.barrier()
@@ -310,6 +351,8 @@ def train(config_path: Path, manifest_path: Path, qualification_path: Path,
                         "model_config": asdict(model_config), "best_qwk": best_qwk,
                         "best_epoch": best_epoch,
                         "history": history, "world_size": world_size,
+                        "total_gradient_overflows": total_overflows,
+                        "consecutive_gradient_overflows": consecutive_overflows,
                         "experiment_config": config, "runtime": runtime,
                         "pipeline_source_sha256": pipeline_source_hashes(),
                         "elapsed_seconds": previous_elapsed + time.monotonic() - run_start}
@@ -323,6 +366,8 @@ def train(config_path: Path, manifest_path: Path, qualification_path: Path,
             print(json.dumps({"epoch": epoch + 1, "train_loss": train_loss,
                               "validation_loss": validation["loss"],
                               "validation_qwk": validation["qwk"], "best_qwk": best_qwk,
+                              "gradient_overflows": epoch_overflows,
+                              "contributing_training_images": int(totals[1]),
                               "epoch_seconds": history[-1]["epoch_seconds"]}), flush=True)
         if distributed:
             dist.barrier()

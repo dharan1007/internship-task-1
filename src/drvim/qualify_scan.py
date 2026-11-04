@@ -53,7 +53,10 @@ def _qualify_full_model_step(config: dict, model_config: VimConfig,
     model = VisionMamba(model_config).to(device).train()
     optimizer = _optimizer(model, float(training["learning_rate"]),
                            float(training["weight_decay"]))
-    scaler = torch.amp.GradScaler("cuda", enabled=amp == "fp16")
+    initial_scale = float(training.get("grad_scaler_init_scale", 65536.0))
+    if not 0 < initial_scale < float("inf"):
+        raise ValueError("grad_scaler_init_scale must be finite and positive")
+    scaler = torch.amp.GradScaler("cuda", init_scale=initial_scale, enabled=amp == "fp16")
     measured: list[dict] = []
     for step in range(2):
         batches = []
@@ -95,6 +98,7 @@ def _qualify_full_model_step(config: dict, model_config: VimConfig,
             "image_ids": [image_id for batch in batches for image_id in batch["image_id"]],
             "loss": float(torch.stack(losses).sum()),
             "gradient_norm": float(gradient_norm),
+            "loss_scale": scaler.get_scale() if amp == "fp16" else None,
             "data_loader_seconds": load_seconds,
             "forward_backward_optimizer_seconds": step_seconds,
             "peak_cuda_bytes": torch.cuda.max_memory_allocated(device),
@@ -104,6 +108,7 @@ def _qualify_full_model_step(config: dict, model_config: VimConfig,
         "microbatch_size": batch_size,
         "gradient_accumulation_steps": accumulation,
         "amp": amp,
+        "grad_scaler_init_scale": initial_scale if amp == "fp16" else None,
         "activation_checkpointing": model_config.activation_checkpointing,
         "trainable_parameters": sum(parameter.numel() for parameter in model.parameters()
                                     if parameter.requires_grad),
