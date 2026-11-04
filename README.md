@@ -13,9 +13,15 @@ EyePACS training images were decoded, reconciled, and hashed in a private
 preparation job. Two real-image optimizer steps were used to qualify an
 earlier source revision. **Full training has not started; there is no trained
 checkpoint, measured classification score, test prediction set, or compiled
-experiment report.** The official Messidor images and annotations are still
-pending. The [code handoff](docs/CODE_SUBMISSION_HANDOFF.md) maps each
-assignment deliverable to its present evidence.
+experiment report.** The 12 official original Messidor archives and annotation
+workbooks have now been downloaded, integrity-checked and extracted in private
+storage. Their verified manifest contains 1,200 records, with 1,187 eligible
+images after 13 published duplicate exclusions. External model evaluation is
+still pending. The
+[illustrated implementation dossier](docs/implementation_dossier.pdf) explains
+the architecture, equations, data flow, measured preparation evidence, source
+correspondence, and limits. The [code handoff](docs/CODE_SUBMISSION_HANDOFF.md)
+maps each assignment deliverable to its present evidence.
 
 ## Implementation
 
@@ -78,17 +84,26 @@ retinal classifiers. Clinical validity and robustness are unproven.
 - **Original Messidor:** external test only. Its R0–R3 grading scheme differs
   from EyePACS ICDR 0–4; the cross-source endpoint is the declared referable
   DR proxy (Messidor R2/R3 versus model ICDR 2/3/4). The preparer accounts
-  for published grade corrections and duplicate pairs.
+  for four published grade corrections and 13 duplicate exclusions. The
+  private 1,200-image manifest passed its schema validation; 1,187 images
+  remain eligible for evaluation.
 - **Messidor-2:** optional extra five-grade test cohort. Official images and
   pair information come from [ADCIS](https://www.adcis.net/en/third-party/messidor2/);
   adjudicated grades are a separate
   [Google Brain release](https://www.kaggle.com/datasets/google-brain/messidor2-dr-grades).
-  The PDF's original Messidor requirement does not depend on Messidor-2.
+  ADCIS states that 1,058 of its images are paired images from original
+  Messidor (PNG copies) and 690 are newly collected extension images (JPG).
+  It cannot be presented as an independent second external dataset alongside
+  original Messidor. Its official pairing spreadsheet was not in the image
+  ZIP received here. The PDF's original Messidor requirement does not depend
+  on Messidor-2.
 
 No raw retinal images, labels, credentials, model weights, or image-bearing
 reports are in this public repository. [Official access steps](docs/DATA_ACCESS.md)
 and the [evidence ledger](docs/SUBMISSION_READINESS.md) distinguish available
-from pending inputs and results.
+from pending inputs and results. The [dated source-access timeline](docs/SOURCE_ACCESS_TIMELINE.md)
+records the support correspondence and acquisition milestones without exposing
+restricted ADCIS access details.
 
 ## Install and workflow
 
@@ -157,10 +172,18 @@ They are **preparation and diagnostic evidence, not trained-model results**.
   architecture comparison; no ready-made model or weights are imported.
 - **Messidor / ADCIS:** credit the
   [Messidor research program](https://www.adcis.net/en/third-party/messidor/)
-  and follow its access and image-use conditions.
+  with its requested acknowledgment, “Kindly provided by the Messidor
+  program partners,” and follow its access and image-use conditions. The
+  original dataset citation is Decencière E et al., “Feedback on a publicly
+  distributed database: the Messidor database,” *Image Analysis &
+  Stereology* 33(3):231–234, 2014.
 - **Messidor-2 grades:** the
   [Google Brain annotations](https://www.kaggle.com/datasets/google-brain/messidor2-dr-grades)
-  are separate from the official ADCIS images.
+  are separate from the official ADCIS images. ADCIS requests attribution to
+  the LaTIM laboratory and Messidor program partners for Messidor-2 use, and
+  cites Abràmoff MD et al., “Automated analysis of retinal images for detection
+  of referable diabetic retinopathy,” *JAMA Ophthalmology* 131(3):351–357,
+  2013.
 - **Optional scan kernel:** the
   [Mamba selective scan project](https://github.com/state-spaces/mamba)
   supplies a pinned low-level efficiency dependency, not model weights.

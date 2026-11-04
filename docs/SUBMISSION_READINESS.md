@@ -11,10 +11,10 @@ LaTeX report with real fundus image--prediction pairs.
 | Vim model, custom Dataset/DataLoader workflow, training/evaluation/report scripts | Source present in `src/drvim`. Diagnostics on real original EyePACS images and a separate full-manifest qualification passed CUDA scan parity and two full-model optimizer steps at 1536 pixels. The complete training run remains unrun. A separate opt-in high-assurance data module and design review are in `src/drvim/data/high_assurance_dataset.py` and `docs/HIGH_ASSURANCE_DATA_PIPELINE.md`; they are not yet adopted into the training run. |
 | Original EyePACS images and labels | Authenticated access is verified with the official Kaggle CLI. `trainLabels.csv.zip` and all five original wrapper parts `train.zip.001.zip`–`.005.zip` are downloaded, CRC-checked and SHA-256 recorded privately. The private Kaggle mount supplied all five raw parts to the completed full-data preparation job. A separate local raw-segment reconstruction was stopped after two verified segments; it is not needed to establish the Kaggle preparation result. Earlier Chrome `.crdownload` files are incomplete and are not treated as source data. |
 | EyePACS data audit, grouping split and complete five-grade training | A private Kaggle job fully extracted, decoded, hashed and reconciled all 35,126 original JPEGs with labels. Its split manifest SHA-256 is `f933f1bcff8f99688fd8a44984acaa4ce0c929d899be9bddcabdfc54ea7c2117`. The split contains 24,590 train, 5,268 validation and 5,268 test images, with all five grades in each. Filename-derived left/right pairing groups do not cross splits, but unique patient identity is not independently verified. The full-manifest model qualification passed numerical and two-step gates, but there is no completed training checkpoint. |
-| Original Messidor evaluation | Official ADCIS images and annotations are not present. No external metrics exist. |
-| Messidor-2 adjudicated five-grade evaluation | The Google Brain adjudicated grade CSV is downloaded, checked and staged privately. No ADCIS personal link has arrived despite repeated requests; a resend request was sent to ADCIS support on 2026-11-03. Official ADCIS images and pairing sheet are still absent. No external metrics exist. |
+| Original Messidor evaluation | ADCIS supplied restricted alternative official access after the form messages failed. All 12 original image archives and 12 canonical annotation workbooks passed integrity checks. The preparer decoded and hashed all 1,200 TIFFs and wrote a schema-valid manifest: 13 published duplicate exclusions, 1,187 eligible images. No external inference or metrics exist. |
+| Messidor-2 adjudicated five-grade evaluation | The Google Brain adjudicated grade CSV is checked and staged privately. ADCIS supplied restricted official access; all four image archive parts passed individual byte-size and SHA-256 checks. The reconstructed ZIP passed complete CRC; all 1,748 images were extracted, decoded, hashed and found byte-unique. The official pairing metadata is not present in the ZIP; no optional external metrics exist. |
 | Accuracy, precision, recall, F1, QWK, confusion matrices, curves and image examples | Generators exist; none of these result artifacts can be produced honestly before a completed run and sealed evaluation. |
-| Concise compiled LaTeX report | Result-bound generator exists and now embeds real, hash-checked EyePACS fundus image pairs. The bundled Tectonic runtime passed a PDF smoke compile on 2026-11-04. No experiment `.tex` or PDF result artifact exists because there are no model results. |
+| Concise compiled LaTeX report | Result-bound generator exists and now embeds real, hash-checked EyePACS fundus image pairs after a completed run. The separate [illustrated implementation dossier](implementation_dossier.pdf) has been compiled and visually reviewed. No final experiment `.tex` or PDF result artifact exists because there are no model results. |
 
 The latest training source adds an epoch-boundary pause option for resumable
 Kaggle sessions. It has not run on GPU yet. The completed full-manifest scan
@@ -75,6 +75,26 @@ The independently published Messidor-2 grades CSV has 1,748 unique image IDs;
 ungradable. Its SHA-256 is
 `bb8bbd82eb4bfddc8a0eb9aa45d84274d814e913534f8027f6a4ff0a310fda72`.
 The CSV and its private provenance record are excluded from Git.
+The original Messidor manifest contains 1,200 unique TIFF records, all assigned
+to external test: 1,187 eligible and 13 excluded under the published Base33
+duplicate policy. The four published grade-correction targets were found and
+applied. Eligible R0/R1/R2/R3 counts are 547/149/240/251. The manifest passed
+`read_manifest` schema validation and has private SHA-256
+`e1e186d911b0d1daca82e3100cb01b1b0ba4f07e7019346d8d6882051e1ba778`.
+Its absolute source paths make that file digest specific to this private
+storage layout. Comparing included image SHA-256 sets against the verified
+35,126-row EyePACS split found zero exact cross-cohort duplicates. This does
+not rule out near duplicates or shared patients and records data readiness,
+not model generalization.
+ADCIS describes Messidor-2 as 1,058 paired images from original Messidor
+reencoded as PNG, plus 690 extension JPGs. It overlaps the required original
+Messidor external cohort by design. A later optional Messidor-2 analysis must
+state this relationship and must not count both cohorts as independent
+replications. The verified ZIP has exactly those extension counts; all 1,058
+PNG filename stems match names in the original Messidor TIFF manifest, and
+none of the 690 JPG stems do. This filename audit does not itself prove pixel
+identity. The official Messidor-2 page also requests LaTIM laboratory and
+Messidor program acknowledgment.
 Both verified label sources are staged in access-controlled private research
 storage. Partial browser transfers cannot be extracted or counted as acquired
 data. The official Kaggle CLI authenticated with a private token outside the
@@ -92,8 +112,11 @@ asking for EyePACS, Inc. and Cuadros--Bresnick (2009) attribution in reports.
 That reply supports resuming the official download; it does not expressly
 answer the request to train after the competition, share weights, or reproduce
 five source images in a reviewer PDF. The latter use scopes remain unresolved.
-The ADCIS access/resend search had no response at the last mailbox check on
-2026-11-04. The EyePACS response above was subsequently supplied by the user.
+ADCIS technical support responded on 2026-11-04 with restricted alternative
+access after the request forms failed to deliver personal links. The support
+message asked that its access link not be shared. The files and access details
+remain outside this public repository. See the
+[dated correspondence and acquisition timeline](SOURCE_ACCESS_TIMELINE.md).
 
 ## Remaining gates, in order
 
@@ -105,11 +128,11 @@ The ADCIS access/resend search had no response at the last mailbox check on
    qualification and low-level CUDA comparison are complete, but neither
    proves current whole-model throughput or distributed training. Determine
    whether a verified zero-cost allocation can finish the full run.
-3. Obtain original Messidor and Messidor-2 ADCIS images and annotations,
-   including the official Messidor-2 pairing sheet. All five original EyePACS
-   image parts and the adjudicated Messidor-2 grades CSV are already acquired.
-   Do not substitute a mirrored or relabeled dataset. ADCIS directs download
-   problems to `webmaster@adcis.net` on its Messidor-2 page.
+3. Run the exact-source and cross-cohort audit using the finished original
+   Messidor manifest before sealed evaluation. The optional Messidor-2 image
+   ZIP passed CRC; locate and verify the official pairing sheet before
+   attempting its five-grade manifest. Do not substitute a mirrored or
+   relabeled dataset.
 4. Finish real-image quality review, distributed throughput qualification and
    an epoch-boundary resume check, then freeze the run configuration. The full
    EyePACS manifest and split are already prepared.

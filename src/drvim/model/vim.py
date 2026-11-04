@@ -118,7 +118,7 @@ class BidirectionalVimBlock(nn.Module):
         x, gate = self.in_proj(self.norm(tokens)).chunk(2, dim=-1)
         forward = self.forward_direction(x)
         backward = self.backward_direction(x.flip(1)).flip(1)
-        mixed = (forward + backward) * 0.5 * F.silu(gate)
+        mixed = (forward + backward) * F.silu(gate)
         return tokens.float() + self.drop_path(self.out_proj(mixed)).float()
 
 

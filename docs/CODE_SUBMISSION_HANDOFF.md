@@ -17,7 +17,7 @@ compiled LaTeX report. A reviewer-approved code-only submission would be a
 | 2. Dataset loading and preprocessing | `src/drvim/data/dataset.py` is the project's custom PyTorch `Dataset`; `src/drvim/data/preprocess.py` handles EXIF orientation, full-field resize/pad, RGB tensor conversion and train-only flip. `prepare.py`, `manifest.py`, `split.py`, `audit.py` reconcile source files and labels, record hashes and exclusions, and create/audit a grouped split. `train.py` uses standard `torch.utils.data.DataLoader`, as the PDF directs. An additional `high_assurance_dataset.py` offers strict byte, color, metadata and cohort checks but is not the active trainer loader. | Implemented and exercised on original EyePACS. The private preparation job decoded, CRC-checked and hashed 35,126 labeled JPEGs, with 24,590/5,268/5,268 train/validation/test. Filename grouping does not prove independent patient identity. |
 | 3. Training and evaluation scripts | `src/drvim/train.py` has the optimizer, cross-entropy loop, mixed precision, accumulation, DDP sampler, validation-only checkpoint selection, resumable checkpoints and completion marker. `src/drvim/qualify_scan.py` checks scan parity and two real-image full-model steps. `src/drvim/evaluate.py` gates test evaluation on a complete run, verifies manifests/checkpoints, saves per-image predictions and plots; `src/drvim/metrics.py` computes requested metrics. `src/drvim/cli.py` exposes commands. | Code exists. A complete training epoch, resume, full run and sealed evaluation have not been demonstrated. The latest source changes require their own qualification. |
 | 4. Evaluation metrics, plots and image–prediction pairs | `evaluate.py`, `metrics.py`, and `report.py` generate these only from a complete checkpoint and actual source images. | **No measured test metrics, convergence curves, confusion plots or image–prediction pairs exist.** Two optimizer steps are diagnostics, not training results. |
-| 5. Compiled LaTeX report | `src/drvim/report.py` generates TeX and compiles it after sealed results; a Tectonic smoke compile passed. | **No final experiment TeX/PDF exists.** . |
+| 5. Compiled LaTeX report | `src/drvim/report.py` generates TeX and compiles it after sealed results; a Tectonic smoke compile passed. The separate, compiled [implementation dossier](implementation_dossier.pdf) explains the code, architecture and preparation evidence. | **No final experiment TeX/PDF exists.** The dossier is explanatory documentation; the result-bound generator refuses to invent measurements. |
 
 ## Paper mapping and deviations
 
@@ -48,8 +48,10 @@ report yet.
 
 For a **code review now**, submit this repository's `src/`, `configs/`,
 `scripts/`, `tests/`, `pyproject.toml`, `README.md`, `docs/RESEARCH_PROTOCOL.md`,
-`docs/HIGH_ASSURANCE_DATA_PIPELINE.md`, `docs/SUBMISSION_READINESS.md`, and this
-handoff. State clearly that training and experimental results are pending.
+`docs/HIGH_ASSURANCE_DATA_PIPELINE.md`, `docs/SUBMISSION_READINESS.md`, the
+[illustrated dossier](implementation_dossier.pdf), the
+[source-access timeline](SOURCE_ACCESS_TIMELINE.md), and this handoff. State
+clearly that training and experimental results are pending.
 Exclude private images, labels, credentials, private manifests, temporary
 files, and diagnostic output from any public archive. The prior
 BF16/parallel source was qualified in the linked Kaggle diagnostic; this
@@ -60,8 +62,13 @@ To meet **every PDF deliverable**, a complete five-class training run must
 select a checkpoint on EyePACS validation, followed by sealed held-out EyePACS
 and original Messidor evaluation, measured metrics/plots/prediction examples,
 and a compiled/reviewed LaTeX report. Original Messidor's 0–3 grades need the
-declared binary endpoint; its ADCIS images and annotations are still absent.
-Messidor-2 adjudicated grades have been obtained, but its ADCIS images and
-pairing sheet are absent. Image use and any public report distribution must
+declared binary endpoint; its official images and annotations are now in
+private storage, and the 1,200-image manifest passed schema validation with
+13 published duplicate exclusions. External model evaluation has not run.
+Messidor-2 adjudicated grades and official split image archives have been
+obtained; the reconstructed image ZIP passed CRC and all 1,748 images passed
+full decode and byte-hash uniqueness checks.
+The official pairing metadata is still missing from that ZIP and must be
+verified before an optional five-grade test. Image use and any public report distribution must
 follow the applicable source terms. This repository is research software and
 has no clinical validation or medical-device qualification.
