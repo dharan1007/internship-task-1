@@ -23,13 +23,16 @@ For least privilege, use a token scoped to competition data download if Kaggle
 offers that scope; its default CLI OAuth login requests broad account access.
 Keep tokens out of this repository and chat.
 The original competition rules limit use to the competition's purpose and
-duration unless separate permission applies. Joining the closed competition
-and obtaining a CLI token do not establish internship reuse rights. An
-EyePACS provider reply received on 2026-11-04 directs download
-from the public Kaggle page and requests attribution in reports. All five
-original training image parts have been downloaded. The reply does not expressly address the separate
-training, weight-sharing and report-image permissions requested in the original
-message; record any further written clarification before sharing those outputs.
+duration unless separate permission applies. A [competition host's answer on
+the official Kaggle forum](https://www.kaggle.com/c/diabetic-retinopathy-detection/discussion/141968)
+says research and publications may use this dataset with EyePACS credit and
+the Cuadros--Bresnick (2009) citation. We treat private educational model
+training as research use under that answer; this is an inference, not an
+express licence for every output. An EyePACS provider reply received on
+2026-11-04 directs download from the Kaggle page and requests the same
+attribution. All five original training image parts have been downloaded.
+Neither statement clearly authorizes redistributing source images in a PDF
+or sharing trained weights; retain those outputs privately pending clarification.
 
 ## Original Messidor
 

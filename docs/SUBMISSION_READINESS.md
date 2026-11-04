@@ -103,15 +103,15 @@ repository. No token or raw source image is included here.
 The [official EyePACS competition rules](https://www.kaggle.com/competitions/diabetic-retinopathy-detection/rules)
 state that, unless otherwise permitted by the competition website, the data
 may be used solely for the competition's purpose and duration and must not be
-provided to nonparticipants. That competition ended in 2015. No written
-permission covering this internship, training, or image-bearing report has
-been supplied or located for every requested scope. An exact-scope permission
-request was sent to `contact@eyepacs.org` on 2026-11-03. On 2026-11-04 the
-user supplied a provider reply directing them to the public Kaggle dataset and
-asking for EyePACS, Inc. and Cuadros--Bresnick (2009) attribution in reports.
-That reply supports resuming the official download; it does not expressly
-answer the request to train after the competition, share weights, or reproduce
-five source images in a reviewer PDF. The latter use scopes remain unresolved.
+provided to nonparticipants. A [competition host's answer on the official
+forum](https://www.kaggle.com/c/diabetic-retinopathy-detection/discussion/141968)
+allows research and publications with EyePACS credit and the
+Cuadros--Bresnick (2009) citation. We infer that private educational training
+falls within research use; the answer does not expressly grant source-image
+redistribution or model-weight sharing. An exact-scope request was sent to
+`contact@eyepacs.org` on 2026-11-03. The 2026-11-04 provider reply directed
+the user to the public Kaggle dataset and repeated the attribution request,
+without expressly resolving those output-sharing scopes.
 ADCIS technical support responded on 2026-11-04 with restricted alternative
 access after the request forms failed to deliver personal links. The support
 message asked that its access link not be shared. The files and access details
@@ -120,9 +120,10 @@ remain outside this public repository. See the
 
 ## Remaining gates, in order
 
-1. Obtain documented permission for the intended internship use and report
-   image sharing. [Kaggle's competition rules](https://www.kaggle.com/competitions/diabetic-retinopathy-detection/rules)
-   restrict data use and redistribution; the user's permission text is pending.
+1. Keep research use within the competition host's public permission and
+   document attribution. Confirm separate rights before distributing source
+   images in the report or sharing model weights; the competition rules
+   restrict redistribution.
 2. Requalify the exact current FP16 training source and optional CUDA scan
    configuration with real EyePACS images. The prior BF16/parallel full-model
    qualification and low-level CUDA comparison are complete, but neither

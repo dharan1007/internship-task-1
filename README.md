@@ -191,8 +191,10 @@ They are **preparation and diagnostic evidence, not trained-model results**.
   [Mamba selective scan project](https://github.com/state-spaces/mamba)
   supplies a pinned low-level efficiency dependency, not model weights.
 
-EyePACS competition terms and the provider reply currently on record do not
-clearly settle all proposed internship reuse, weight-sharing, or image-bearing
-report scopes. Confirm the applicable permission before sharing those
-outputs. This is research code, with no clinical validation, regulatory
+The [competition host's research-use answer](https://www.kaggle.com/c/diabetic-retinopathy-detection/discussion/141968)
+supports educational research and publications with EyePACS attribution; we
+infer that private training falls within that scope. It and the provider reply
+do not clearly authorize sharing source images or trained weights. Confirm
+those rights before distributing such outputs. This is research code, with no
+clinical validation, regulatory
 clearance, or diagnostic claim.
