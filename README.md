@@ -18,9 +18,12 @@ workbooks have now been downloaded, integrity-checked and extracted in private
 storage. Their verified manifest contains 1,200 records, with 1,187 eligible
 images after 13 published duplicate exclusions. External model evaluation is
 still pending. The
-[illustrated implementation dossier](docs/implementation_dossier.pdf) explains
-the architecture, equations, data flow, measured preparation evidence, source
-correspondence, and limits. The [code handoff](docs/CODE_SUBMISSION_HANDOFF.md)
+[18-page illustrated implementation dossier](docs/implementation_dossier.pdf)
+explains the architecture, equations, data flow, measured preparation evidence,
+source correspondence, and limits. Its LaTeX source is
+[here](docs/implementation_dossier.tex), with
+[technical appendices](docs/implementation_appendix.tex). The
+[code handoff](docs/CODE_SUBMISSION_HANDOFF.md)
 maps each assignment deliverable to its present evidence.
 
 ## Implementation

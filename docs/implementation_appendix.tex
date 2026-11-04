@@ -1,0 +1,508 @@
+\newpage
+\section*{\color{ink}Appendix A \quad Assignment-to-source traceability}
+The supplied two-page internship brief is the governing requirement. Its
+five expected deliverables are separate evidence gates. A source file is
+evidence of an implementation, while a classifier result requires a
+completed run and inference on held-out images. The table below names the
+specific artifact that a reviewer can inspect for each requirement.
+
+\small
+\begin{tabularx}{\linewidth}{@{}p{.27\linewidth}Y p{.22\linewidth}@{}}
+\toprule
+Brief requirement & Inspectable implementation & Current proof\\
+\midrule
+Own Vim classes; no ready-made model or pretrained weights &
+\code{src/drvim/model/vim.py}, \code{model/scan.py}; random parameters and
+authored directional blocks & Local scan parity and earlier two-step GPU
+diagnostic; current revision needs new qualification\\
+Own EyePACS Dataset and PyTorch DataLoader &
+\code{data/dataset.py}, \code{data/preprocess.py}, \code{data/prepare.py}
+and \code{data/split.py} & 35,126 real labeled JPEGs audited; custom
+Dataset used in diagnostic\\
+Training and evaluation scripts &
+\code{train.py}, \code{evaluate.py}, \code{metrics.py}, \code{cli.py} &
+Commands and local tests; full training not completed\\
+Metrics, figures and example predictions &
+Result-bound evaluation and report generators & No classifier result,
+prediction pair or convergence graph yet\\
+Concise compiled results report &
+\code{report.py} and a LaTeX compiler path & The present PDF documents
+implementation; final experimental report awaits results\\
+\bottomrule
+\end{tabularx}
+\normalsize
+
+\smallhead{What is deliberately separate}
+The brief does not ask for a trained clinical service, mobile application,
+medical device clearance, or a new dataset. The optional high-assurance
+loader and Messidor-2 adapter are research extensions; neither is a
+substitute for the required EyePACS training and original Messidor test.
+No published Vision Mamba score is imported as this project's score.
+
+\smallhead{Review sequence}
+Inspect the model and scan, examine the dataset contract, reproduce local
+checks, confirm official source provenance, then review the exact GPU
+qualification and run identity. Only after a full training completion
+marker should the held-out evaluation and final result report be assessed.
+This order prevents a code handoff from being mistaken for a completed
+experiment.
+
+\newpage
+\section*{\color{ink}Appendix B \quad Tensor shapes and computational scale}
+The configured input has shape $B\times3\times1536\times1536$. A
+convolution with $16\times16$ kernel and stride 16 creates a $96\times96$
+grid. Flattening gives 9,216 patch tokens; insertion of one learned
+classification token gives a sequence length of 9,217. The hidden width
+is 768 and the directional expansion width is 1,536.
+
+\small
+\begin{tabularx}{\linewidth}{@{}p{.27\linewidth}p{.27\linewidth}Y@{}}
+\toprule
+Stage & Tensor shape & Interpretation\\
+\midrule
+Input image & $B\times3\times1536\times1536$ & Full field is retained
+by letterbox preprocessing\\
+Patch embedding & $B\times9216\times768$ & One token per nonoverlapping
+patch\\
+Middle class token + positions & $B\times9217\times768$ & Positions are
+learned and unique to this token sequence\\
+Directional inner stream & $B\times9217\times1536$ & Forward and reverse
+streams have separate convolution/SSM parameters\\
+Selective state & $B\times1536\times16$ per direction & State dimension
+is 16; the recurrent implementation does not need to retain a full
+state tensor for every token at inference\\
+Classifier output & $B\times5$ & Logits for ICDR grades 0 through 4\\
+\bottomrule
+\end{tabularx}
+\normalsize
+
+The depth is 24 blocks. The instantiated model has 103,760,645 trainable
+parameters. A dense attention matrix over the same token sequence would
+contain $L^2=84{,}953{,}089$ positions per head, before accounting for
+queries, keys, values or gradients. The Vim design replaces this pairwise
+attention operation with directional selective state updates. This count
+explains the architecture choice; it does not prove superior accuracy or
+whole-model speed for this repository.
+
+\smallhead{Resolution choice}
+The 1536-pixel input preserves substantially more fundus detail than a
+small classification crop while requiring careful scan memory and runtime
+qualification. The assignment and paper do not mandate this resolution.
+The exact input geometry, patch size and token count are stored in
+\code{configs/vim\_base\_eye.yaml} so a later run can be reconstructed.
+
+\smallhead{Where memory can grow}
+Patch-token activations scale with $BLD$ per block; directional state
+computation also depends on expansion width and state size. Activation
+checkpointing recomputes selected intermediates during backward. The
+103.8-million parameter count alone does not determine GPU memory:
+gradients, optimizer moments, decoded image batches and prefetch buffers
+also matter. Qualification must measure a complete model step with the
+chosen precision, batch and scan backend.
+
+\newpage
+\section*{\color{ink}Appendix C \quad Selective-state derivation and paper map}
+For each direction, the input-dependent projections generate $B_t$, $C_t$
+and a positive step size $\Delta_t$. A learned log parameter defines a
+negative diagonal state matrix $A=-\exp(A_{\log})$. The implemented
+selective scan follows the Mamba input-drive convention:
+\[
+ \bar A_t=\exp(\Delta_t A),\qquad
+ h_t=\bar A_t\odot h_{t-1}+\Delta_t B_t\odot x_t,
+ \qquad y_t=\langle C_t,h_t\rangle+D\odot x_t.
+\]
+The forward stream reads tokens left to right. The reverse stream reads a
+reversed copy and reverses its output back to original order. Both streams
+have their own depthwise causal Conv1d, state projections, step projection,
+$A_{\log}$ and skip vector. A shared projected gate $\operatorname{SiLU}(z)$
+then modulates their \emph{sum}, followed by output projection and residual:
+\[
+ T_{\ell}=T_{\ell-1}
+ +\operatorname{DropPath}\!\left(W_o[(y_{\rightarrow}+y_{\leftarrow})
+ \odot\operatorname{SiLU}(z)]\right).
+\]
+The directional sum matches the paper's Algorithm 1. A code review on
+4 November corrected an earlier factor of one-half in this expression.
+The existing two-step GPU diagnostic was run before this correction and
+must not be presented as qualification of the present source revision.
+
+\smallhead{Reference, parallel and optional kernel paths}
+The reference recurrence is intentionally direct and useful for numerical
+comparison. The in-house parallel path composes affine transitions in
+bounded chunks and implements backward propagation. An optional pinned
+CUDA selective-scan dependency is a low-level efficiency path, never a
+ready-made Vim model or a source of pretrained weights. Its benchmark is
+scan-only; the corrected whole classifier has not been profiled with it.
+
+\smallhead{Paper boundary}
+The cited paper studies ImageNet and downstream dense prediction. This
+project changes the task to five-grade retinal classification, initializes
+weights randomly, uses 1536-pixel letterboxed inputs, and defines its own
+training schedule. These task decisions and this implementation's timings
+must not be confused with the paper's reported benchmark results
+\cite{vim,mamba}.
+
+\newpage
+\section*{\color{ink}Appendix D \quad Official cohort provenance}
+The three data sources have distinct roles and label semantics. The
+original EyePACS Kaggle training release supplies five-grade labels and
+is the only training source. Original Messidor is reserved for external
+evaluation. Messidor-2 is optional and partly overlaps original Messidor.
+
+\small
+\begin{tabularx}{\linewidth}{@{}p{.22\linewidth}p{.22\linewidth}Y@{}}
+\toprule
+Source & Verified source counts & Research use in this project\\
+\midrule
+EyePACS Kaggle & 35,126 labeled JPEGs; grade counts
+25,810 / 2,443 / 5,292 / 873 / 708 & Train, validation and sealed held-out
+test under ICDR grades 0--4\\
+Original Messidor / ADCIS & 1,200 TIFFs, 12 canonical workbooks; 1,187
+eligible after 13 published duplicate exclusions & External test under
+R0--R3; cross-source referable proxy only\\
+Messidor-2 / ADCIS & 1,748 decoded images: 1,058 PNGs and 690 JPGs;
+independent Google Brain grades cover 1,744 gradable images & Optional
+five-grade analysis after official pairing metadata is verified\\
+\bottomrule
+\end{tabularx}
+\normalsize
+
+Every original Messidor TIFF was decoded and SHA-256 hashed; four
+published grade corrections were applied. Eligible R0/R1/R2/R3 counts
+are 547/149/240/251. Its manifest passed schema validation. The
+included EyePACS and original Messidor image-hash sets have zero exact
+overlap. That comparison does not detect recoded near duplicates or
+prove independent patient identity.
+
+The Messidor-2 ZIP passed CRC and all 1,748 extracted images passed a
+full decode and byte-hash uniqueness audit. Its 1,058 PNG filename stems
+match original Messidor TIFF stems; its 690 JPG stems do not. ADCIS
+describes those PNGs as the original paired subset and the JPGs as the
+extension. Reporting Messidor and whole Messidor-2 as independent
+replications would therefore overstate the evidence. The official
+pairing spreadsheet was not present in the delivered image ZIP, so no
+Messidor-2 result is claimed \cite{messidor,adcis2,grades}.
+
+\smallhead{Observed native image dimensions}
+\small
+\begin{tabularx}{\linewidth}{@{}p{.32\linewidth}rrY@{}}
+\toprule
+Native dimensions & Original Messidor & Messidor-2 & Purpose\\
+\midrule
+$1440\times960$ & 588 & 528 & Prevent silent geometry assumptions\\
+$2240\times1488$ & 400 & 616 & Verify decode and resize inputs\\
+$2304\times1536$ & 212 & 604 & Preserve the field at every size\\
+\bottomrule
+\end{tabularx}
+\normalsize
+These counts come from the private image manifest and full decode audit,
+not classifier inference. The normalizer retains each rectangular source
+field in a square canvas; it does not claim identical camera or color
+distributions across cohorts.
+
+\newpage
+\section*{\color{ink}Appendix E \quad Custom Dataset and image contract}
+The active \code{RetinaDataset} is the project's own map-style PyTorch
+\code{Dataset}. PyTorch's \code{DataLoader} supplies workers and batching,
+as the assignment requests. No ready-made retinal dataset loader or
+synthetic example cohort is used. A sample is selected from a validated
+manifest row with source, image ID, path, grade, split, inclusion flag,
+dimensions and SHA-256 identity.
+
+\begin{center}
+\begin{tikzpicture}[>=Latex,node distance=3mm,
+ b/.style={draw=line,fill=pale,rounded corners=2pt,align=center,
+ text width=25mm,minimum height=10mm,font=\small},
+ a/.style={-Latex,thick,draw=teal}]
+\node[b] (m) {Manifest row\\source + split};
+\node[b,right=of m] (o) {Open real image\\EXIF orient};
+\node[b,right=of o] (r) {RGB conversion\\resize + pad};
+\node[b,right=of r] (t) {Tensor + grade\\train flip only};
+\node[b,right=of t] (d) {DataLoader\\batch + workers};
+\draw[a] (m)--(o); \draw[a] (o)--(r); \draw[a] (r)--(t); \draw[a] (t)--(d);
+\end{tikzpicture}
+\end{center}
+
+Aspect-preserving resize uses scale
+$s=\min(1536/w,1536/h)$; the resized image is centered in a black
+$1536\times1536$ canvas. This retains the whole source field instead of
+cutting off peripheral retinal content. Horizontal reflection is a
+training-only augmentation. Validation and test use a deterministic
+transform. The model receives RGB channel-first tensors and a five-grade
+integer label for EyePACS.
+
+\smallhead{Separate high-assurance candidate}
+The additional module implements stricter per-read byte hashing, explicit
+format and size limits, ICC-to-sRGB conversion and recorded untagged-color
+assumptions, deterministic augmentation keys, and metadata requirements.
+It is not connected to the primary training run. The public EyePACS
+release lacks confirmed patient, site, device, adjudication and rights
+metadata, so the candidate fails closed rather than inventing them.
+This distinction is essential when evaluating possible medical-grade or
+licensable use: a strict interface cannot create missing clinical proof.
+
+\smallhead{Sample-level failure decisions}
+\small
+\begin{tabularx}{\linewidth}{@{}p{.33\linewidth}Y@{}}
+\toprule
+Condition & Required behavior\\
+\midrule
+Unlabeled or repeated ID & Preparation fails; no target grade is invented\\
+Unreadable, invalid-size or non-color image & Decode/manifest check
+fails before training\\
+Image bytes change & Hash audit fails; the source is no longer frozen\\
+Excluded or ungradable record & Explicit exclusion remains in manifest
+and is omitted from the learning or result denominator\\
+Unknown patient/site/color metadata & No guessed value; the optional
+strict candidate rejects absent attestations\\
+\bottomrule
+\end{tabularx}
+\normalsize
+
+\newpage
+\section*{\color{ink}Appendix F \quad Split design and leakage boundaries}
+The labeled EyePACS release was audited as 35,126 images. Filename-derived
+left/right pairing IDs were grouped before assignment, and grades were
+stratified. The frozen split contains 24,590 training, 5,268 validation
+and 5,268 held-out test images. All five grades occur in each partition.
+No filename-pair group crosses partitions. The split manifest SHA-256 is
+{\scriptsize\code{f933f1bcff8f99688fd8a44984acaa4ce0c929d899be9bddcabdfc54ea7c2117}}.
+
+\smallhead{Actual EyePACS image counts by grade}
+\small
+\begin{tabularx}{\linewidth}{@{}p{.23\linewidth}rrrrrr@{}}
+\toprule
+Partition & G0 & G1 & G2 & G3 & G4 & Total\\
+\midrule
+Training & 18,060 & 1,713 & 3,693 & 622 & 502 & 24,590\\
+Validation & 3,872 & 365 & 806 & 130 & 95 & 5,268\\
+Held-out test & 3,878 & 365 & 793 & 121 & 111 & 5,268\\
+\bottomrule
+\end{tabularx}
+\normalsize
+Grade 0 dominates each partition, while grades 3 and 4 are rare.
+Macro metrics and class-level confusion counts will therefore matter
+more than an isolated accuracy number. These are label counts, not
+measurements of classifier sensitivity or agreement.
+
+\small
+\begin{tabularx}{\linewidth}{@{}p{.22\linewidth}p{.16\linewidth}Y@{}}
+\toprule
+Partition & Images & Permitted role\\
+\midrule
+Training & 24,590 & Gradient updates and training-only augmentation\\
+Validation & 5,268 & Checkpoint selection and declared training diagnostics\\
+Held-out EyePACS & 5,268 & One sealed internal test after full training\\
+Original Messidor & 1,187 eligible & External test only; never fine-tune or
+choose a threshold on it\\
+\bottomrule
+\end{tabularx}
+\normalsize
+
+The filename token is a grouping proxy, not an independently verified
+patient identifier. The public release does not supply complete patient,
+site or device linkage. Exact byte-hash overlap between the included
+EyePACS and original Messidor manifests is zero; perceptual near
+duplicates, related subjects and acquisition correlations remain separate
+questions. The optional Messidor-2 cohort overlaps original Messidor by
+design, so those two cannot be pooled as independent external tests.
+
+\smallhead{Sealed-test rule}
+The training loop may inspect training loss and validation QWK. It does
+not consume held-out EyePACS or Messidor labels. The evaluation command
+requires a training-complete marker, a selected validation checkpoint,
+manifest hashes and an audit artifact. It refuses to overwrite existing
+test results. This design makes test reuse visible and reduces accidental
+selection on held-out outcomes; it does not replace an independent
+prospective validation study.
+
+\newpage
+\section*{\color{ink}Appendix G \quad Training lifecycle and checkpoint identity}
+The configured candidate uses AdamW, cross-entropy, $10^{-4}$ initial
+learning rate, 0.05 weight decay, five warmup epochs and cosine decay.
+Per-GPU batch is two, with four gradient-accumulation steps. For $G$
+participating GPUs, the intended effective batch is $2\times4\times G$
+real images per optimizer update, subject to end-of-epoch handling.
+FP16 automatic mixed precision, gradient clipping at norm 1.0,
+activation checkpointing, distributed sampling and a maximum drop-path
+rate of 0.1 are configured. The declared ceiling is 300 epochs; it is a
+project choice, not a requirement of the brief or the Vim paper.
+
+\begin{center}
+\begin{tikzpicture}[>=Latex,node distance=3mm,
+ b/.style={draw=line,fill=pale,rounded corners=2pt,align=center,
+ text width=28mm,minimum height=12mm,font=\small},
+ a/.style={-Latex,thick,draw=teal}]
+\node[b] (q) {Source + scan\\qualification};
+\node[b,right=of q] (tr) {Epoch training\\save resume state};
+\node[b,right=of tr] (v) {Validation QWK\\select best epoch};
+\node[b,right=of v] (c) {Full completion\\seal identity};
+\draw[a] (q)--(tr); \draw[a] (tr)--(v); \draw[a] (v)--(c);
+\end{tikzpicture}
+\end{center}
+
+The checkpoint stores model, optimizer, scheduler, scaler and random
+number generator state with configuration, manifest and source identities.
+An epoch-boundary pause writes resumable state without marking a full run
+complete. Resume requires the same source, data split, configuration,
+qualification and distributed world size. The best checkpoint is selected
+by validation QWK alone.
+
+\smallhead{Checkpoint integrity fields}
+\small
+\begin{tabularx}{\linewidth}{@{}p{.31\linewidth}Y@{}}
+\toprule
+Recorded state & Why it is needed\\
+\midrule
+Model and optimizer & Resume parameters and moments from the same epoch\\
+Scheduler and gradient scaler & Preserve learning-rate and precision state\\
+Random generators & Make stochastic order and augmentation auditable\\
+Source, manifest and config hashes & Reject a checkpoint paired with
+changed code, split, images or hyperparameters\\
+Qualification identity & Prevent a diagnostic from another scan backend
+or model revision from being reused\\
+\bottomrule
+\end{tabularx}
+\normalsize
+
+\smallhead{Evidence boundary}
+An earlier BF16/parallel version completed two real-image optimizer steps
+on one T4. The current source has FP16 and optional CUDA changes, and its
+directional combination was corrected to the paper's sum. No complete
+epoch, resume cycle, distributed throughput, trained checkpoint or
+validation score has been demonstrated for this exact revision. Its
+training lifecycle is implemented but not yet experimentally qualified.
+
+\newpage
+\section*{\color{ink}Appendix H \quad Evaluation definitions and outputs}
+For comparable five-grade ICDR labels, the per-image record contains
+source ID, true grade, predicted grade and five probabilities. The
+confusion matrix has $C_{ij}=\#\{n:y_n=i,\hat y_n=j\}$. For each class,
+precision is $TP/(TP+FP)$, recall is $TP/(TP+FN)$ and F1 is
+$2PR/(P+R)$ under the code's explicit zero-denominator policy. Macro
+values average the five class values; accuracy is
+$\sum_i C_{ii}/\sum_{ij}C_{ij}$. QWK compares observed and expected
+grade-pair frequencies with quadratic distance weights
+$w_{ij}=(i-j)^2/(K-1)^2$. Undefined QWK is rejected.
+
+\small
+\begin{tabularx}{\linewidth}{@{}p{.25\linewidth}Y@{}}
+\toprule
+Evaluation cohort & Permitted result interpretation\\
+\midrule
+Held-out EyePACS & Five-grade accuracy, per-class and macro
+precision/recall/F1, QWK, confusion matrix and referable proxy\\
+Original Messidor & Its R0--R3 grades are not ICDR 0--4. Report the
+predeclared binary proxy: true R2/R3 against predicted ICDR 2/3/4;
+five-grade QWK against these labels would be invalid\\
+Optional Messidor-2 & Five-grade metrics only after official images,
+pairing metadata and independent adjudicated grades reconcile; disclose
+overlap with original Messidor\\
+\bottomrule
+\end{tabularx}
+\normalsize
+
+The evaluation script verifies the selected checkpoint and source hashes,
+runs inference, saves per-image rows, then computes metric JSON and plots.
+The report generator recalculates results from saved rows before placing
+confusion matrices, curves and real source image--prediction pairs in a
+LaTeX report. This chain is implemented but has not yet produced a
+classifier result. No number in this dossier is a DR accuracy, F1 or QWK
+measurement for the model.
+
+\smallhead{Required final artifact chain}
+A completed run should create a validation-selected checkpoint and
+training-complete record. The sealed evaluation then writes per-image
+predictions, cohort metric JSON and confusion matrices. The report step
+must compile the results TeX, place real image--prediction pairs only
+when permitted, and tie displayed numbers to prediction rows. Training
+and validation curves come from the epoch log; the external test cannot
+contribute to those curves or checkpoint choice. Cohort denominators
+must reflect explicit exclusions, including the 13 published original
+Messidor duplicate removals.
+
+\newpage
+\section*{\color{ink}Appendix I \quad Measured diagnostics and feasibility}
+The completed Kaggle preparation job checked all 35,126 original EyePACS
+images and produced the frozen split. A separate full-manifest diagnostic
+ran an earlier model source for exactly two eight-image optimizer updates
+on one T4 at 1536 pixels. Those updates took 195.71 and 197.24 seconds.
+These are measured step times, not an epoch duration or a trained model.
+
+\small
+\begin{tabularx}{\linewidth}{@{}p{.32\linewidth}p{.22\linewidth}Y@{}}
+\toprule
+Observed check & Value & Scope\\
+\midrule
+EyePACS preparation & 35,126 audited images & Source/label audit and
+grouped split only\\
+Earlier full-model steps & 195.71 s; 197.24 s & Two real-image updates,
+one T4, earlier BF16/parallel revision\\
+Scan-only in-house path & 0.33374 s & One measured 9,217-token scan
+benchmark, not a classifier step\\
+Scan-only pinned CUDA path & 0.02563 s & Same low-level benchmark;
+maximum forward absolute difference $1.31\times10^{-6}$\\
+Repository checks & Ruff pass; 12 tests pass & Source checks, not
+clinical or accuracy qualification\\
+\bottomrule
+\end{tabularx}
+\normalsize
+
+At the earlier step rate, $24{,}590/8\approx3{,}074$ optimizer updates
+per epoch would imply roughly 168 hours for one epoch before validation,
+I/O, checkpoints and any distributed speedup. This is a conditional
+extrapolation, not a timed epoch. The optional low-level CUDA scan showed
+about a 13-fold improvement for its measured kernel path, but this cannot
+be multiplied into a whole-model training estimate. The current source
+needs a full-model GPU qualification and a measured epoch. No paid
+compute has been used; the available zero-cost Kaggle quota has not
+been shown sufficient for the declared schedule.
+
+\newpage
+\section*{\color{ink}Appendix J \quad Failure controls, credits and handoff}
+The code rejects missing or repeated labels, unknown grade schemes,
+invalid images, duplicate included image hashes, altered manifests,
+source/checkpoint mismatches and test evaluation before training
+completion. It records exclusions rather than silently dropping rows.
+Its high-assurance candidate adds byte, format, color and metadata gates
+but is not an active trainer dependency.
+
+\small
+\begin{tabularx}{\linewidth}{@{}p{.31\linewidth}Y@{}}
+\toprule
+Risk & Implemented or required response\\
+\midrule
+Incorrect Messidor labels & Apply the four official errata; exclude one
+member of each of 13 published Base33 duplicate pairs\\
+Patient/eye leakage & Keep filename-paired EyePACS eyes together;
+acknowledge that the token is not verified patient identity\\
+Cross-source label mismatch & Use the declared binary referable proxy for
+original Messidor; reserve five-grade QWK for comparable labels\\
+Incomplete or changed run & Pin source/config/manifest/checkpoint hashes;
+require completion marker and refuse result overwrite\\
+Dataset rights & Keep images, credentials and restricted ADCIS access
+outside Git; obtain exact EyePACS scope clarification before sharing
+image-bearing results or weights\\
+\bottomrule
+\end{tabularx}
+\normalsize
+
+\smallhead{Project and source links}
+\href{https://github.com/dharan1007/internship-task-1}{GitHub source repository}
+contains the code and this TeX/PDF. The owner-controlled Kaggle notebooks
+linked on page 7 separately document
+\href{https://www.kaggle.com/code/dharantejreddy/drvim-prepare-original-eyepacs}{EyePACS preparation},
+\href{https://www.kaggle.com/code/dharantejreddy/drvim-full-model-qualification}{two-step qualification},
+\href{https://www.kaggle.com/code/dharantejreddy/drvim-pinned-cuda-scan-build}{kernel build} and
+\href{https://www.kaggle.com/code/dharantejreddy/drvim-real-eyepacs-cuda-scan-comparison}{scan comparison}.
+EyePACS, Inc., Cuadros--Bresnick (2009), the Vision Mamba authors,
+the Messidor program, LaTIM, ADCIS and the independent Google Brain
+Messidor-2 graders are credited in the reference list and README.
+
+\smallhead{Submission boundary}
+This compiled implementation dossier and the first three code
+deliverables are ready for a code-focused review. The assignment's full
+experimental submission still requires completed training, measured
+EyePACS and original Messidor results, real prediction examples and a
+separate concise results report. Those outputs are not represented as
+finished here.
