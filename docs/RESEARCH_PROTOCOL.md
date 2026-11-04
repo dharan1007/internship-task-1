@@ -12,8 +12,8 @@ The reference is [Vision Mamba](https://arxiv.org/abs/2401.09417), the authors'
 | PyTorch Vim source | Build the architecture from scratch | From-scratch model and scan implemented; the earlier BF16/parallel source passed two real-image full-model optimizer steps, while current FP16/optional CUDA edits remain unqualified as a full model |
 | Custom Dataset/DataLoader | Load and preprocess EyePACS in PyTorch | Own Dataset and preprocessing implemented; PyTorch DataLoader used for batching; all 35,126 original EyePACS images audited in private Kaggle preparation |
 | Full EyePACS training and held-out evaluation | Produce real five-grade results | All five official EyePACS image parts and labels verified; immutable split prepared; full training has not started; rights and zero-cost throughput remain unresolved |
-| Original Messidor external evaluation | Evaluate the separate test cohort named in the PDF | Source implemented as a declared binary endpoint; source pending |
-| Optional Messidor-2 adjudicated five-grade evaluation | Add a five-grade external comparison beyond the PDF's original Messidor requirement | Source implemented; independent grades verified; ADCIS images and pairing sheet pending |
+| Original Messidor external evaluation | Evaluate the separate test cohort named in the PDF | Official images and annotations acquired and reconciled in private storage; the declared binary endpoint is implemented, but model evaluation is pending |
+| Optional Messidor-2 adjudicated five-grade evaluation | Add a five-grade external comparison beyond the PDF's original Messidor requirement | Official images and independent grades acquired and checked privately; the official pairing sheet and model evaluation are pending |
 | Metrics, confusion matrices, curves, fundus image--prediction pairs | Supply the PDF's quantitative and visual evidence | Generated only from actual checkpoint, manifests, and predictions |
 | Concise compiled LaTeX report | Explain method, data, training, results, conclusions, references | Generator implemented; final PDF requires real results |
 
@@ -45,8 +45,9 @@ build or metrics from unrelated papers is not a final submission.
    border, laterality, black space and small-lesion visibility before freezing.
 4. **Architecture.** 24 blocks, width 768, state dimension 16, expansion 2,
    causal depthwise convolution width 4 in each direction, separate reverse
-   convolution/SSM parameters, input gate, division by two, middle class
-   token, absolute position embedding, RMSNorm, FP32 residual and 0--0.1
+   convolution/SSM parameters, shared input gate, directional sum as in the
+   paper's Algorithm 1, middle class token, absolute position embedding,
+   RMSNorm, FP32 residual and 0--0.1
    stochastic depth. The affine selective scan and gradients are written here.
    The parallel implementation retains only chunk-boundary states and
    recomputes each chunk during backward, following the paper's state
