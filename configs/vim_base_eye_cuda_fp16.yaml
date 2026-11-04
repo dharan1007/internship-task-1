@@ -1,0 +1,28 @@
+experiment: eyepacs_vim_base_cuda_fp16
+seed: 2026
+model:
+  image_size: 1536
+  patch_size: 16
+  depth: 24
+  embed_dim: 768
+  state_dim: 16
+  expansion: 2
+  conv_kernel: 4
+  num_classes: 5
+  scan_backend: cuda_kernel
+  activation_checkpointing: true
+  drop_path_rate: 0.1
+data:
+  batch_size: 2
+  workers: 8
+  pin_memory: true
+  image_policy: preserve_full_field
+train:
+  epochs: 300
+  learning_rate: 0.0001
+  weight_decay: 0.05
+  warmup_epochs: 5
+  grad_accum_steps: 4
+  amp: fp16
+  max_grad_norm: 1.0
+  validation_metric: qwk

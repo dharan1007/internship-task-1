@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dr-vim-research"
+version = "0.1.0"
+description = "From-scratch Vision Mamba diabetic retinopathy research pipeline"
+requires-python = ">=3.10"
+dependencies = [
+  "torch>=2.11,<3",
+  "numpy>=1.26,<3",
+  "pandas>=2.2,<3",
+  "Pillow>=10,<13",
+  "PyYAML>=6,<7",
+  "matplotlib>=3.8,<4",
+  "scikit-learn>=1.4,<2",
+  "xlrd>=2.0,<3",
+  "openpyxl>=3.1,<4",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8,<10", "ruff>=0.8,<1"]
+
+[project.scripts]
+drvim = "drvim.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
